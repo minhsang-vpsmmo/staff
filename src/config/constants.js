@@ -1,0 +1,63 @@
+'use strict';
+
+module.exports = Object.freeze({
+  // Wallet
+  MIN_TOPUP_VND: 10000,
+
+  // Auth
+  JWT_ACCESS_TTL_SEC: 900,        // 15 minutes
+  JWT_REFRESH_TTL_SEC: 2592000,   // 30 days
+  LOGIN_MAX_ATTEMPTS: 5,
+  LOGIN_LOCKOUT_MIN: 15,
+  BCRYPT_COST: 12,
+  PASSWORD_MIN_LENGTH: 8,
+  EMAIL_VERIFY_TOKEN_TTL_HOURS: 48,
+  PASSWORD_RESET_TOKEN_TTL_HOURS: 1,
+
+  // Email
+  EMAIL_DAILY_HARD_CAP: 450,
+  EMAIL_DAILY_WARN_CAP: 320,
+  EMAIL_MAX_RETRY: 5,
+
+  // Billing
+  GRACE_PERIOD_DAYS: 3,
+  SUBSCRIPTION_EXPIRE_DAYS: 90,   // days after suspended before expired
+
+  // Monitoring
+  MONITOR_CHECK_TIMEOUT_DEFAULT_SEC: 30,
+  MONITOR_CHECK_CONCURRENCY: 50,
+  MONITOR_CHECK_HISTORY_RETENTION_DAYS: 30,
+  ALERT_DEDUP_WINDOW_MIN: 5,
+  SSL_EXPIRY_ALERT_DAYS: [30, 14, 7, 3, 1],
+
+  // Rate limiting
+  RATE_AUTH_MAX: 5,
+  RATE_AUTH_WINDOW_MIN: 5,
+  RATE_REGISTER_MAX: 3,
+  RATE_REGISTER_WINDOW_MIN: 60,
+  RATE_FORGOT_MAX: 3,
+  RATE_FORGOT_WINDOW_MIN: 60,
+  RATE_GENERAL_MAX: 100,
+  RATE_GENERAL_WINDOW_MIN: 1,
+  RATE_ADMIN_MAX: 200,
+  RATE_ADMIN_WINDOW_MIN: 1,
+  RATE_AGENT_MAX: 60,
+  RATE_AGENT_WINDOW_MIN: 1,
+
+  // Pagination
+  PAGINATION_DEFAULT: 20,
+  PAGINATION_MAX: 100,
+
+  // Admin
+  ADMIN_LOGIN_AS_TTL_SEC: 3600,   // 1 hour
+  ADMIN_REASON_MIN_LENGTH: 10,
+
+  // VietQR
+  VIETQR_BASE_URL: 'https://img.vietqr.io/image',
+
+  // User agent for outbound checks
+  MONITOR_USER_AGENT: 'VPSMMO-Monitoring/1.0 (+https://monitoring.vpsmmo.vn)',
+
+  // Max response size for keyword check (5MB)
+  KEYWORD_CHECK_MAX_RESPONSE_BYTES: 5 * 1024 * 1024,
+});
