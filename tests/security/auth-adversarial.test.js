@@ -141,4 +141,53 @@ describe('Auth adversarial tests', () => {
     const hash = await bcrypt.hash(ADV_PASS, 12);
     await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, user.id]);
   });
+
+
+  it('ATK-A06: login timing existing vs nonexistent user diff < 15%', async () => {
+    const pool = getPool();
+    const EXISTING = 'timing_exists_' + Date.now() + '@test.com';
+    const NONEXISTENT = 'timing_nonexist_' + Date.now() + '@test.com';
+
+    await pool.query('DELETE FROM rate_limit_buckets');
+    await request(app).post('/api/auth/register')
+      .send({ email: EXISTING, password: 'ValidP@ss123' });
+    await pool.query('DELETE FROM rate_limit_buckets');
+
+    const N = 30;
+    const times = { existing: [], nonexistent: [] };
+
+    for (let i = 0; i < N; i++) {
+      await pool.query('DELETE FROM rate_limit_buckets');
+      await pool.query('UPDATE users SET failed_login_count=0, locked_until=NULL WHERE email = ?', [EXISTING]);
+
+      const start1 = Date.now();
+      await request(app).post('/api/auth/login')
+        .send({ email: EXISTING, password: 'WrongP@ss' });
+      times.existing.push(Date.now() - start1);
+
+      await pool.query('DELETE FROM rate_limit_buckets');
+
+      const start2 = Date.now();
+      await request(app).post('/api/auth/login')
+        .send({ email: NONEXISTENT, password: 'AnyP@ss' });
+      times.nonexistent.push(Date.now() - start2);
+    }
+
+    const avg = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+    const avgExisting = avg(times.existing);
+    const avgNonexistent = avg(times.nonexistent);
+    const diff = Math.abs(avgExisting - avgNonexistent);
+    const pct = diff / Math.max(avgExisting, avgNonexistent);
+
+    console.log('Timing: existing=' + avgExisting.toFixed(1) + 'ms, nonexistent=' + avgNonexistent.toFixed(1) + 'ms, diff=' + (pct * 100).toFixed(1) + '%');
+
+    expect(pct).toBeLessThan(0.15);
+
+    // Cleanup
+    await pool.query('DELETE FROM user_sessions WHERE user_id IN (SELECT id FROM users WHERE email = ?)', [EXISTING]);
+    await pool.query('DELETE FROM email_queue WHERE to_email = ?', [EXISTING]);
+    await pool.query('DELETE FROM users WHERE email = ?', [EXISTING]);
+    await pool.query('DELETE FROM rate_limit_buckets');
+  }, 120000);
+
 });
