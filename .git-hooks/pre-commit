@@ -1,0 +1,45 @@
+#!/bin/bash
+RED="\033[0;31m"
+YELLOW="\033[0;33m"
+NC="\033[0m"
+BLOCKED=0
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+if [ -z "$STAGED" ]; then exit 0; fi
+
+for file in $STAGED; do
+  [ ! -f "$file" ] && continue
+
+  # Skip: hook itself, docs, examples, check-secrets script, test files
+  case "$file" in
+    .git-hooks/*|*.md|*.example|scripts/check-secrets.sh|tests/*.test.js) continue ;;
+  esac
+
+  if grep -qF "AIzaSy" "$file" 2>/dev/null; then
+    echo -e "${RED}BLOCKED${NC} Google API key in: $file"; BLOCKED=1; fi
+  if grep -qE "sk_(live|test)_" "$file" 2>/dev/null; then
+    echo -e "${RED}BLOCKED${NC} Stripe key in: $file"; BLOCKED=1; fi
+  if grep -qF "-----BEGIN PRIVATE KEY" "$file" 2>/dev/null; then
+    echo -e "${RED}BLOCKED${NC} Private key in: $file"; BLOCKED=1; fi
+  if grep -qF "-----BEGIN RSA PRIVATE KEY" "$file" 2>/dev/null; then
+    echo -e "${RED}BLOCKED${NC} RSA key in: $file"; BLOCKED=1; fi
+  if grep -qF "-----BEGIN OPENSSH" "$file" 2>/dev/null; then
+    echo -e "${RED}BLOCKED${NC} OpenSSH key in: $file"; BLOCKED=1; fi
+  if grep -qE "password\s*[:=]\s*[\"'][^\"']{8,}" "$file" 2>/dev/null; then
+    echo -e "${RED}BLOCKED${NC} Hardcoded password in: $file"; BLOCKED=1; fi
+done
+
+if echo "$STAGED" | grep -qx "\.env$"; then
+  echo -e "${RED}BLOCKED${NC} .env must not be committed"; BLOCKED=1
+fi
+
+for file in $STAGED; do
+  if [[ "$file" == src/* ]] && grep -qF "console.log(" "$file" 2>/dev/null; then
+    echo -e "${YELLOW}WARNING${NC} console.log() in: $file"
+  fi
+done
+
+if [ $BLOCKED -ne 0 ]; then
+  echo -e "\n${RED}Commit blocked. Remove secret patterns.${NC}"; exit 1
+fi
+exit 0
