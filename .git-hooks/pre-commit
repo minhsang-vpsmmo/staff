@@ -1,0 +1,55 @@
+#!/bin/bash
+# Pre-commit hook: scan staged files for secret patterns
+# Install: bash scripts/install-hooks.sh
+
+RED="\033[0;31m"
+YELLOW="\033[0;33m"
+NC="\033[0m"
+BLOCKED=0
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+if [ -z "$STAGED" ]; then exit 0; fi
+
+# Files to skip (hook itself, docs, examples)
+SKIP_PATTERN="^(\.git-hooks/|\.env\.example$|.*\.md$)"
+
+for file in $STAGED; do
+  [ ! -f "$file" ] && continue
+  # Skip hook files and docs
+  if echo "$file" | grep -qE "$SKIP_PATTERN"; then continue; fi
+
+  # Block: known secret prefixes
+  if grep -qF "AIzaSy" "$file" 2>/dev/null; then
+    echo -e "${RED}BLOCKED${NC} Google API key pattern in: $file"; BLOCKED=1; fi
+  if grep -qE "sk_(live|test)_" "$file" 2>/dev/null; then
+    echo -e "${RED}BLOCKED${NC} Stripe key pattern in: $file"; BLOCKED=1; fi
+  if grep -qF "-----BEGIN PRIVATE KEY" "$file" 2>/dev/null; then
+    echo -e "${RED}BLOCKED${NC} Private key in: $file"; BLOCKED=1; fi
+  if grep -qF "-----BEGIN RSA PRIVATE KEY" "$file" 2>/dev/null; then
+    echo -e "${RED}BLOCKED${NC} RSA private key in: $file"; BLOCKED=1; fi
+  if grep -qF "-----BEGIN OPENSSH" "$file" 2>/dev/null; then
+    echo -e "${RED}BLOCKED${NC} OpenSSH key in: $file"; BLOCKED=1; fi
+  if grep -qE "password\s*[:=]\s*[\"'][^\"']{8,}" "$file" 2>/dev/null; then
+    echo -e "${RED}BLOCKED${NC} Hardcoded password in: $file"; BLOCKED=1; fi
+  if grep -qE "SMTP_APP_PASSWORD\s*=\s*\S+" "$file" 2>/dev/null; then
+    echo -e "${RED}BLOCKED${NC} SMTP password in source: $file"; BLOCKED=1; fi
+done
+
+# Block: .env file itself
+if echo "$STAGED" | grep -qx "\.env$"; then
+  echo -e "${RED}BLOCKED${NC} .env file must not be committed"
+  BLOCKED=1
+fi
+
+# Warn: console.log in src/
+for file in $STAGED; do
+  if [[ "$file" == src/* ]] && grep -qF "console.log(" "$file" 2>/dev/null; then
+    echo -e "${YELLOW}WARNING${NC} console.log() in: $file (use logger instead)"
+  fi
+done
+
+if [ $BLOCKED -ne 0 ]; then
+  echo -e "\n${RED}Commit blocked. Remove secret patterns before committing.${NC}"
+  exit 1
+fi
+exit 0
