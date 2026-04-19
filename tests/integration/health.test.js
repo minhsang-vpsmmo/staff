@@ -1,6 +1,5 @@
 'use strict';
 
-const { describe, it, expect, afterAll } = require('vitest');
 const request = require('supertest');
 
 // Set test env before importing app

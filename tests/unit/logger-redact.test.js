@@ -1,6 +1,5 @@
 'use strict';
 
-const { describe, it, expect } = require('vitest');
 const pino = require('pino');
 
 // Create a test logger with same redaction config as production

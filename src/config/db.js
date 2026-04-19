@@ -23,13 +23,6 @@ function createPool(config) {
     timezone: '+07:00',
   });
 
-  // Set REPEATABLE READ on each connection acquire
-  pool.on('acquire', (connection) => {
-    connection.query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ").catch((err) => {
-      log.error({ err: err.message, event: 'db.isolation.set_failed' });
-    });
-  });
-
   log.info({ event: 'db.pool.created', connectionLimit: config.NODE_ENV === 'production' ? 20 : 5 });
   return pool;
 }

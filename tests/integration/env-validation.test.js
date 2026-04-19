@@ -1,6 +1,5 @@
 'use strict';
 
-const { describe, it, expect } = require('vitest');
 const { execSync } = require('child_process');
 const path = require('path');
 

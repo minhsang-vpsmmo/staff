@@ -1,6 +1,5 @@
 'use strict';
 
-const { describe, it, expect } = require('vitest');
 const { toVND, fromVND, add, sub, gte, gt, isPositive, format, Decimal } = require('../../src/lib/money');
 
 describe('money.js', () => {
