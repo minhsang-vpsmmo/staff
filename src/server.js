@@ -9,7 +9,9 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const logger = require('./lib/logger');
 const { createPool, ping, closePool } = require('./config/db');
+const { init: initTelegram } = require('./lib/telegram');
 const { errorHandler } = require('./middleware/error-handler');
+const { createAuthRoutes } = require('./modules/auth/routes');
 
 const log = logger.child({ module: 'server' });
 const app = express();
@@ -36,6 +38,9 @@ app.set('trust proxy', 1);
 // ── Database ──
 createPool(config);
 
+// ── Telegram ──
+initTelegram(config);
+
 // ── Health check ──
 app.get('/health', async (req, res) => {
   const dbOk = await ping();
@@ -57,6 +62,9 @@ app.get('/', (req, res) => {
     docs: 'https://monitoring.vpsmmo.vn',
   });
 });
+
+// ── API routes ──
+app.use('/api', createAuthRoutes(config));
 
 // ── 404 handler ──
 app.use((req, res) => {
@@ -106,7 +114,6 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-// Auto-start when run directly
 if (require.main === module) {
   start().catch((err) => {
     log.error({ event: 'server.start_failed', err: err.message });
