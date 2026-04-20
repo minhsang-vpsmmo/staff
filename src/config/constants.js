@@ -56,6 +56,7 @@ module.exports = Object.freeze({
   VIETQR_BASE_URL: 'https://img.vietqr.io/image',
 
   // User agent for outbound checks
+  ADMIN_ADJUST_ALERT_THRESHOLD_VND: 500000,
   MONITOR_USER_AGENT: 'VPSMMO-Monitoring/1.0 (+https://monitoring.vpsmmo.vn)',
 
   // Max response size for keyword check (5MB)

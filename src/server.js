@@ -12,6 +12,8 @@ const { createPool, ping, closePool } = require('./config/db');
 const { init: initTelegram } = require('./lib/telegram');
 const { errorHandler } = require('./middleware/error-handler');
 const { createAuthRoutes } = require('./modules/auth/routes');
+const { createWalletRoutes } = require("./modules/wallet/routes");
+const { createAdminRoutes } = require("./modules/admin/routes");
 
 const log = logger.child({ module: 'server' });
 const app = express();
@@ -65,6 +67,8 @@ app.get('/', (req, res) => {
 
 // ── API routes ──
 app.use('/api', createAuthRoutes(config));
+app.use("/api", createWalletRoutes(config));
+app.use("/api", createAdminRoutes(config));
 
 // ── 404 handler ──
 app.use((req, res) => {
