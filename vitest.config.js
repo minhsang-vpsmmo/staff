@@ -10,7 +10,8 @@ module.exports = defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.js'],
-      exclude: ['src/server.js'],
+      exclude: ['src/server.js', 'src/cron-runner.js'],
+      reporter: ['text', 'text-summary', 'json-summary'],
     },
   },
 });
