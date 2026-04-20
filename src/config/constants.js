@@ -3,6 +3,7 @@
 module.exports = Object.freeze({
   // Wallet
   MIN_TOPUP_VND: 10000,
+  MIN_AMOUNT_VND: 1000,
 
   // Auth
   JWT_ACCESS_TTL_SEC: 900,        // 15 minutes
@@ -56,6 +57,7 @@ module.exports = Object.freeze({
   VIETQR_BASE_URL: 'https://img.vietqr.io/image',
 
   // User agent for outbound checks
+  ADMIN_ADJUST_ALERT_THRESHOLD_VND: 500000,
   MONITOR_USER_AGENT: 'VPSMMO-Monitoring/1.0 (+https://monitoring.vpsmmo.vn)',
 
   // Max response size for keyword check (5MB)
