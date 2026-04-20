@@ -19,7 +19,8 @@ process.env.PAY2S_BANK_ACCOUNTS = '12805521';
 
 const { app } = require('../../src/server');
 const { getPool } = require('../../src/config/db');
-const { credit, debit, getBalance, getTransactions } = require('../../src/modules/wallet/service');
+const walletService = require('../../src/modules/wallet/service');
+const { credit, debit, getBalance, getTransactions } = walletService;
 
 let testUserId;
 let testAdminId;
@@ -231,4 +232,96 @@ describe('Admin balance-adjust', () => {
       .send({ amount: '1000', reason: 'Test unauthorized access attempt' });
     expect(res.status).toBe(403);
   });
+
+
+describe('Gate 8: Date range boundary', () => {
+  it('getTransactions to filter includes entire day', async () => {
+    const pool = getPool();
+    const testEmail = 'gate8-date-' + Date.now() + '@test.com';
+    await pool.query(
+      "INSERT INTO users (email, password_hash, email_verified, status, balance) VALUES (?, '$2b$12$dummyhashxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 1, 'active', '10000.00')",
+      [testEmail]
+    );
+    const [[user]] = await pool.query('SELECT id FROM users WHERE email = ?', [testEmail]);
+    const userId = user.id;
+
+    try {
+      const ts = Date.now();
+      await pool.query(
+        'INSERT INTO wallet_transactions (user_id, type, amount, balance_before, balance_after, idempotency_key, created_at) VALUES (?,?,?,?,?,?,?),(?,?,?,?,?,?,?),(?,?,?,?,?,?,?),(?,?,?,?,?,?,?)',
+        [
+          userId, 'topup', '1000.00', '0.00', '1000.00', 'g8dt-'+ts+'-1', '2026-12-31 00:00:01',
+          userId, 'topup', '2000.00', '1000.00', '3000.00', 'g8dt-'+ts+'-2', '2026-12-31 12:00:00',
+          userId, 'topup', '3000.00', '3000.00', '6000.00', 'g8dt-'+ts+'-3', '2026-12-31 23:59:59',
+          userId, 'topup', '4000.00', '6000.00', '10000.00', 'g8dt-'+ts+'-4', '2027-01-01 00:00:00',
+        ]
+      );
+      const result = await walletService.getTransactions(userId, { from: '2026-12-31', to: '2026-12-31' });
+      expect(result.data.length).toBe(3);
+      const has2027 = result.data.some(t => new Date(t.created_at).toISOString().startsWith('2027'));
+      expect(has2027).toBe(false);
+    } finally {
+      await pool.query('DELETE FROM wallet_transactions WHERE user_id = ?', [userId]);
+      await pool.query('DELETE FROM users WHERE id = ?', [userId]);
+    }
+  });
+});
+
+describe('Gate 8: MIN_AMOUNT_VND dust rejection', () => {
+  it('credit rejects amount below MIN_AMOUNT_VND', async () => {
+    await expect(
+      walletService.credit(testUserId, '500', { type: 'topup', idempotencyKey: 'g8dust-' + Date.now() })
+    ).rejects.toThrow("Amount must be at least");
+  });
+
+  it('credit accepts exactly MIN_AMOUNT_VND (1000)', async () => {
+    const result = await walletService.credit(testUserId, '1000', { type: 'topup', idempotencyKey: 'g8min-' + Date.now() });
+    expect(result.duplicate).toBe(false);
+  });
+
+  it('admin_adjust bypasses MIN_AMOUNT_VND', async () => {
+    const result = await walletService.credit(testUserId, '100', {
+      type: 'admin_adjust', idempotencyKey: 'g8admin-sm-' + Date.now(),
+      adminId: testAdminId, adminReason: 'Fix rounding issue VND-cents',
+    });
+    expect(result.duplicate).toBe(false);
+  });
+
+  it('debit rejects dust amount', async () => {
+    await expect(
+      walletService.debit(testUserId, '999', { type: 'purchase', idempotencyKey: 'g8deb-dust-' + Date.now() })
+    ).rejects.toThrow("Amount must be at least");
+  });
+});
+
+describe('Gate 8: Admin target validation', () => {
+  it('rejects non-numeric user ID', async () => {
+    const res = await request(app).post('/api/admin/users/abc/balance-adjust')
+      .set('Authorization', 'Bearer ' + adminToken)
+      .send({ amount: '10000', reason: 'Test invalid ID string param' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects negative user ID', async () => {
+    const res = await request(app).post('/api/admin/users/-5/balance-adjust')
+      .set('Authorization', 'Bearer ' + adminToken)
+      .send({ amount: '10000', reason: 'Test negative user ID parameter' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects non-existent user ID', async () => {
+    const res = await request(app).post('/api/admin/users/9999999/balance-adjust')
+      .set('Authorization', 'Bearer ' + adminToken)
+      .send({ amount: '10000', reason: 'User does not exist anywhere in DB' });
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects zero amount', async () => {
+    const res = await request(app).post('/api/admin/users/' + testUserId + '/balance-adjust')
+      .set('Authorization', 'Bearer ' + adminToken)
+      .send({ amount: '0', reason: 'Cannot adjust by zero amount' });
+    expect(res.status).toBe(400);
+  });
+});
+
 });
