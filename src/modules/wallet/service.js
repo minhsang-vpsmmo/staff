@@ -81,6 +81,9 @@ async function credit(userId, amount, opts) {
         );
         return { duplicate: true, transactionId: dup?.id, balanceAfter: dup?.balance_after };
       }
+      // DEFENSIVE: Non-idempotency UNIQUE violation (unreachable with current schema;
+      // idempotency_key is the only UNIQUE on wallet_transactions). Guard for future schema.
+      /* c8 ignore next */
       throw insertErr;
     }
 
@@ -194,6 +197,8 @@ async function debit(userId, amount, opts) {
         );
         return { duplicate: true, transactionId: dup?.id, balanceAfter: dup?.balance_after };
       }
+      // DEFENSIVE: Non-idempotency UNIQUE violation (unreachable with current schema).
+      /* c8 ignore next */
       throw insertErr;
     }
 
