@@ -4,7 +4,7 @@ const Decimal = require('decimal.js');
 const { getPool } = require('../../config/db');
 const { AppError, InsufficientBalanceError } = require('../../lib/errors');
 const { toVND, fromVND, format } = require('../../lib/money');
-const { ADMIN_REASON_MIN_LENGTH, PAGINATION_DEFAULT, PAGINATION_MAX } = require('../../config/constants');
+const { ADMIN_REASON_MIN_LENGTH, PAGINATION_DEFAULT, PAGINATION_MAX, MIN_AMOUNT_VND } = require('../../config/constants');
 const logger = require('../../lib/logger');
 
 const log = logger.child({ module: 'wallet' });
@@ -22,6 +22,9 @@ async function credit(userId, amount, opts) {
   const amountDec = toVND(amount);
   if (amountDec.lte(0)) {
     throw new AppError('INVALID_AMOUNT', 'Amount must be positive', 400);
+  }
+  if (opts?.type !== 'admin_adjust' && amountDec.lt(MIN_AMOUNT_VND)) {
+    throw new AppError('AMOUNT_TOO_SMALL', 'Amount must be at least ' + MIN_AMOUNT_VND + ' VND', 400);
   }
   if (!opts?.type) {
     throw new AppError('MISSING_PARAMS', 'type is required', 400);
@@ -126,6 +129,9 @@ async function debit(userId, amount, opts) {
   const amountDec = toVND(amount);
   if (amountDec.lte(0)) {
     throw new AppError('INVALID_AMOUNT', 'Amount must be positive', 400);
+  }
+  if (opts?.type !== 'admin_adjust' && amountDec.lt(MIN_AMOUNT_VND)) {
+    throw new AppError('AMOUNT_TOO_SMALL', 'Amount must be at least ' + MIN_AMOUNT_VND + ' VND', 400);
   }
   if (!opts?.type) {
     throw new AppError('MISSING_PARAMS', 'type is required', 400);
@@ -257,7 +263,7 @@ async function getTransactions(userId, filters = {}) {
 
   if (filters.type) { where += ' AND type = ?'; params.push(filters.type); }
   if (filters.from) { where += ' AND created_at >= ?'; params.push(filters.from); }
-  if (filters.to) { where += ' AND created_at <= ?'; params.push(filters.to); }
+  if (filters.to) { where += ' AND created_at < DATE_ADD(?, INTERVAL 1 DAY)'; params.push(filters.to); }
 
   const [[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM wallet_transactions ' + where, params);
   const [rows] = await pool.query(

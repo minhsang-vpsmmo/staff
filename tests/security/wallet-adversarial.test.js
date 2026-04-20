@@ -109,7 +109,7 @@ describe('Wallet adversarial tests', () => {
     expect(actualMatches).toHaveLength(0);
   });
 
-  it('ATK-M12: 100x credit 99.99 → exactly 9999.00 (Decimal precision)', async () => {
+  it('ATK-M12: 100x credit 1099.99 → exactly 109999.00 (Decimal precision)', async () => {
     // Reset balance
     const pool = getPool();
     await pool.query('DELETE FROM wallet_transactions WHERE user_id = ?', [testUserId]);
@@ -117,20 +117,20 @@ describe('Wallet adversarial tests', () => {
 
     // 100 sequential credits of 99.99
     for (let i = 0; i < 100; i++) {
-      await credit(testUserId, '99.99', {
+      await credit(testUserId, '1099.99', {
         type: 'bonus',
         idempotencyKey: `atk-m12:${Date.now()}:${i}`,
       });
     }
 
     const [[user]] = await pool.query('SELECT balance FROM users WHERE id = ?', [testUserId]);
-    expect(new Decimal(user.balance).toFixed(2)).toBe('9999.00');
+    expect(new Decimal(user.balance).toFixed(2)).toBe('109999.00');
 
     const [[{ total }]] = await pool.query(
       'SELECT SUM(amount) AS total FROM wallet_transactions WHERE user_id = ? AND idempotency_key LIKE ?',
       [testUserId, 'atk-m12:%']
     );
-    expect(new Decimal(total).toFixed(2)).toBe('9999.00');
+    expect(new Decimal(total).toFixed(2)).toBe('109999.00');
   }, 60000);
 
   it('ATK-M10: admin adjust without reason → rejected', async () => {

@@ -3,6 +3,7 @@
 module.exports = Object.freeze({
   // Wallet
   MIN_TOPUP_VND: 10000,
+  MIN_AMOUNT_VND: 1000,
 
   // Auth
   JWT_ACCESS_TTL_SEC: 900,        // 15 minutes
